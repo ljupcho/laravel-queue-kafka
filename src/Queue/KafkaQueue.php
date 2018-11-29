@@ -80,7 +80,24 @@ class KafkaQueue extends Queue implements QueueContract
      */
     public function push($job, $data = '', $queue = null)
     {
-        return $this->pushRaw($this->createPayload($job, $data), $queue, []);
+        $payload_arr = $this->createPayloadArray($job, $data);
+        $payload = $this->createPayloadKafka($payload_arr);
+
+        return $this->pushRaw($payload, $queue, []);
+    }
+
+    /**
+     * Send the job back to queue
+     *
+     * @param array $data
+     * @param null $queue
+     * @return mixed
+     */
+    public function release(array $data, $queue = null)
+    {
+        $payload = $this->createPayloadKafka($data);
+
+        return $this->pushRaw($payload, $queue, []);
     }
 
     /**
@@ -230,9 +247,31 @@ class KafkaQueue extends Queue implements QueueContract
     protected function createPayloadArray($job, $data = '', $queue = null)
     {
         return array_merge(parent::createPayloadArray($job, $data), [
-            'id' => $this->getCorrelationId(),
+            'id'       => $this->getCorrelationId(),
             'attempts' => 0,
         ]);
+    }
+
+
+    /**
+     * Create a payload string from the given job and data.
+     *
+     * @param  array  $payload
+     * @return string
+     *
+     * @throws \Illuminate\Queue\InvalidPayloadException
+     */
+    protected function createPayloadKafka(array $payload)
+    {
+        $payload = json_encode($payload);
+
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            throw new InvalidPayloadException(
+                'Unable to JSON encode payload. Error code: '.json_last_error()
+            );
+        }
+
+        return $payload;
     }
 
     /**

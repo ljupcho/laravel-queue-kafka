@@ -122,6 +122,7 @@ class KafkaJob extends Job implements JobContract
         $this->delete();
 
         $body = $this->payload();
+        $body['attempts'] = (int)$body['attempts'] + 1;
 
         /*
          * Some jobs don't have the command set, so fall back to just sending it the job name string
@@ -137,7 +138,7 @@ class KafkaJob extends Job implements JobContract
         if ($delay > 0) {
             $this->connection->later($delay, $job, $data, $this->getQueue());
         } else {
-            $this->connection->push($job, $data, $this->getQueue());
+            $this->connection->release($body, $this->getQueue());
         }
     }
 
